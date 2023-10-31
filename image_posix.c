@@ -59,9 +59,9 @@ uint8_t getPixelValue(Image* srcImage,int x,int y,int bit,Matrix algorithm){
 //Returns: Nothing
 void* convolute(void* args){
     ConvoArgs *convArgs = (ConvoArgs *) args;
-    
+    printf("hello from thread %d\n", convArgs->myRank); 
     int localRows = convArgs->srcImage->height/convArgs->numThreads;
-    int myFirstRow = convArgs->myRank*localRows;
+    int myFirstRow = convArgs->myRank * localRows;
     int myLastRow = (convArgs->myRank + 1) * localRows - 1;
 
     int row,pix,bit,span;
@@ -73,6 +73,7 @@ void* convolute(void* args){
             }
         }
     }
+    free(args);
     return NULL; 
 }
 
@@ -103,7 +104,7 @@ int main(int argc,char** argv){
     t1=time(NULL);
 
     int numThreads = atoi(argv[3]);
-    pthread_t threads[numThreads];
+    pthread_t *threads = (pthread_t *) malloc(sizeof(pthread_t) * numThreads);
 
     stbi_set_flip_vertically_on_load(0); 
     if (argc!=4) return Usage();
@@ -126,20 +127,21 @@ int main(int argc,char** argv){
 
 
     for(int i = 0; i < numThreads; i++) {
-        ConvoArgs args;
-        args.srcImage = &srcImage;
-        args.destImage = &destImage;
-        args.type = type;
-        args.myRank = 1;
-        args.numThreads = numThreads;
+        ConvoArgs *args = (ConvoArgs*) malloc(sizeof(ConvoArgs));
+        args->srcImage = &srcImage;
+        args->destImage = &destImage;
+        args->type = type;
+        args->myRank = i;
+        args->numThreads = numThreads;
 
-        pthread_create(&threads[i], NULL, convolute, (void *) &args);
+        pthread_create(&threads[i], NULL, convolute, (void *) args);
     }
 
     for(int i = 0; i < numThreads; i++) {
         pthread_join(threads[i], NULL);
     }
 
+    free(threads);
     stbi_write_png("output.png",destImage.width,destImage.height,destImage.bpp,destImage.data,destImage.bpp*destImage.width);
     stbi_image_free(srcImage.data);
 
