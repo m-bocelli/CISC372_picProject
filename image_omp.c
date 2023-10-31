@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <string.h>
-#include "image.h"
+#include "image_omp.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -59,7 +59,8 @@ uint8_t getPixelValue(Image* srcImage,int x,int y,int bit,Matrix algorithm){
 void convolute(Image* srcImage,Image* destImage,Matrix algorithm, int numThreads){
     int row,pix,bit,span;
     span=srcImage->bpp*srcImage->bpp;
-    #pragma omp parallel for num_threads(numThreads) 
+    #pragma omp parallel for num_threads(numThreads) \
+   	private(row) private(pix) private(bit) 
     for (row=0;row<srcImage->height;row++){
         for (pix=0;pix<srcImage->width;pix++){
             for (bit=0;bit<srcImage->bpp;bit++){
