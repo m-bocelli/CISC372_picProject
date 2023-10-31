@@ -2,8 +2,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <string.h>
-#include <pthread.h>
-#include "image_posix.h"
+#include "image.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -57,24 +56,17 @@ uint8_t getPixelValue(Image* srcImage,int x,int y,int bit,Matrix algorithm){
 //            destImage: A pointer to a  pre-allocated (including space for the pixel array) structure to receive the convoluted image.  It should be the same size as srcImage
 //            algorithm: The kernel matrix to use for the convolution
 //Returns: Nothing
-void* convolute(void* args){
-    ConvoArgs *convArgs = (ConvoArgs *) args;
-    printf("hello from thread %d\n", convArgs->myRank); 
-    int localRows = convArgs->srcImage->height/convArgs->numThreads;
-    int myFirstRow = convArgs->myRank * localRows;
-    int myLastRow = (convArgs->myRank + 1) * localRows - 1;
-
+void convolute(Image* srcImage,Image* destImage,Matrix algorithm, int numThreads){
     int row,pix,bit,span;
-    span=convArgs->srcImage->bpp*convArgs->srcImage->bpp;
-    for (row=myFirstRow;row <= myLastRow;row++){
-        for (pix=0;pix<convArgs->srcImage->width;pix++){
-            for (bit=0;bit<convArgs->srcImage->bpp;bit++){
-                convArgs->destImage->data[Index(pix,row,convArgs->srcImage->width,bit,convArgs->srcImage->bpp)]=getPixelValue(convArgs->srcImage,pix,row,bit,algorithms[convArgs->type]);
+    span=srcImage->bpp*srcImage->bpp;
+    #pragma omp parallel for num_threads(numThreads) 
+    for (row=0;row<srcImage->height;row++){
+        for (pix=0;pix<srcImage->width;pix++){
+            for (bit=0;bit<srcImage->bpp;bit++){
+                destImage->data[Index(pix,row,srcImage->width,bit,srcImage->bpp)]=getPixelValue(srcImage,pix,row,bit,algorithm);
             }
         }
     }
-    free(args);
-    return NULL; 
 }
 
 //Usage: Prints usage information for the program
@@ -98,13 +90,9 @@ enum KernelTypes GetKernelType(char* type){
 
 //main:
 //argv is expected to take 2 arguments.  First is the source file name (can be jpg, png, bmp, tga).  Second is the lower case name of the algorithm.
-//with pthreads, argv is expected to take 3, with the 3rd being number of threads.
 int main(int argc,char** argv){
     long t1,t2;
     t1=time(NULL);
-
-    int numThreads = atoi(argv[3]);
-    pthread_t *threads = (pthread_t *) malloc(sizeof(pthread_t) * numThreads);
 
     stbi_set_flip_vertically_on_load(0); 
     if (argc!=4) return Usage();
@@ -125,28 +113,13 @@ int main(int argc,char** argv){
     destImage.width=srcImage.width;
     destImage.data=malloc(sizeof(uint8_t)*destImage.width*destImage.bpp*destImage.height);
 
-
-    for(int i = 0; i < numThreads; i++) {
-        ConvoArgs *args = (ConvoArgs*) malloc(sizeof(ConvoArgs));
-        args->srcImage = &srcImage;
-        args->destImage = &destImage;
-        args->type = type;
-        args->myRank = i;
-        args->numThreads = numThreads;
-
-        pthread_create(&threads[i], NULL, convolute, (void *) args);
-    }
-
-    for(int i = 0; i < numThreads; i++) {
-        pthread_join(threads[i], NULL);
-    }
-
-    free(threads);
+    int numThreads = atoi(argv[3]);
+    convolute(&srcImage,&destImage,algorithms[type], numThreads);
     stbi_write_png("output.png",destImage.width,destImage.height,destImage.bpp,destImage.data,destImage.bpp*destImage.width);
     stbi_image_free(srcImage.data);
-
+    
     free(destImage.data);
     t2=time(NULL);
     printf("Took %ld seconds\n",t2-t1);
-    return 0;
+   return 0;
 }
