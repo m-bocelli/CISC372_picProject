@@ -1,0 +1,19 @@
+Script started on Mon Oct 30 23:49:59 2023
+]0;mbocelli@r1n13.darwin:~/CISC372_picProject[?1034h[mbocelli@r1n13 CISC372_picProject]$ srun ./image_omp pic1.jpg edge `0  10
+Took 6 seconds
+]0;mbocelli@r1n13.darwin:~/CISC372_picProject[mbocelli@r1n13 CISC372_picProject]$ srun ./image_posix pic1.jpg edge 10
+hello from thread 1
+hello from thread 7
+hello from thread 0
+hello from thread 3
+hello from thread 8
+hello from thread 2
+hello from thread 4
+hello from thread 5
+hello from thread 6
+hello from thread 9
+Took 6 seconds
+]0;mbocelli@r1n13.darwin:~/CISC372_picProject[mbocelli@r1n13 CISC372_picProject]$ exit
+exit
+
+Script done on Mon Oct 30 23:50:38 2023
